@@ -4,12 +4,12 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.layers import Dense, Dropout, Input, Conv2D, MaxPooling2D, Flatten
+from tensorflow.keras.layers import concatenate, Dense, Dropout, Input, Conv2D, MaxPooling2D, Flatten, Embedding, GRU
 from tensorflow.keras.models import Model
 from tensorflow.keras.utils import to_categorical
 from imblearn.under_sampling import *
 from tensorflow.keras.callbacks import EarlyStopping, CSVLogger, TensorBoard, ModelCheckpoint
-
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 es = EarlyStopping(mid_delta=0, patience=10)
 cl = CSVLogger('./logs/train.log')
@@ -20,7 +20,9 @@ mc = ModelCheckpoint(filepath='./checkpoint',save_weights_only=True, save_best_o
 vocab_size = 50000 # 사용할 단어의 개수 (빈도 순)
 N = 12 # 분류할 label의 종류
 usage = 0.8 # 현재 data의 크기가 커서, generator를 만들기 전까지 이걸로 사용
-max_len = 500
+max_len = 520 # padding을 맞출 문장의 최대 길이
+embedding_dim = 100 # 임베딩 차원
+dropout_rate = 0.3
 
 tlf_dict = pd.read_pickle("./data/tlf_dict_2")
 tlf_tuplelist = list(tlf_dict.items())
@@ -78,9 +80,22 @@ X_valid = X_valid.reshape((*X_valid.shape,1))
 tokenizer = Tokenizer(num_words=vocab_size)
 tokenizer.fit_on_texts(x_train)
 
-X_train_txt = tokenizer.texts_to_matrix(x_train)
+x_train_txt = tokenizer.texts_to_sequences(x_train)
+x_valid_txt = tokenizer.texts_to_sequences(x_valid)
 
-txtInput = Input(shape=())
+X_train_txt = pad_sequences(x_train_txt, maxlen=max_len)
+X_valid_txt = pad_sequences(x_valid_txt, maxlen=max_len)
+
+
+txtInput = Input(shape=(max_len,), name='txt_input')
+txt = Embedding(vocab_size, embedding_dim, input_length=max_len)(txtInput)
+txt = GRU(512, return_sequences=True)(txt)
+txt = Dropout(dropout_rate)(txt)
+txt = GRU(512, return_sequences=True)(txt)
+txt = Dropout(dropout_rate)(txt)
+txt = GRU(512)(txt)
+txt = Dense(512, activation='relu')(txt)
+
 imgInput = Input(shape=(vocab_size, N, 1, ), name = 'img_input')
 img = Conv2D(64, (3,3), padding='same', name='block1_conv1', activation='relu')(imgInput)
 img = Conv2D(64, (3,3), padding='same', name='block1_conv2', activation='relu')(img)
@@ -101,14 +116,17 @@ img = Conv2D(1024, (3,3), padding='same', name='block5_conv1', activation='relu'
 img = Conv2D(1024, (3,3), padding='same', name='block5_conv2', activation='relu')(img)
 img = MaxPooling2D((4,1), name='block5_pool')(img)
 img = Flatten()(img)
-output = Dense(N, activation='softmax')(img)
 
-model = Model(inputs = imgInput, outputs = output)
+output = concatenate([img, txt], axis=-1)
+output = Dropout(dropout_rate)(output)
+output = Dense(N, activation='softmax')(output)
+
+model = Model(inputs = [imgInput, txtInput], outputs = output)
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=["accuracy"])
 
 model.summary()
 
-history = model.fit(X_train, Y_train, validation_data=(X_valid, Y_valid), workers=-1, epochs = 1000, callbacks=[es, cl, tb, mc])
+history = model.fit([X_train, X_train_txt], Y_train, validation_data=([X_valid, X_valid_txt], Y_valid), workers=-1, epochs = 1000, callbacks=[es, cl, tb, mc])
 
 with open('./trainHistory', 'wb') as file_pi:
     pickle.dump(history.history, file_pi)
