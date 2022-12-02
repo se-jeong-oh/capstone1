@@ -1,7 +1,7 @@
 import pandas as pd
 from tensorflow.keras.preprocessing.text import Tokenizer
 import pickle
-
+from time import time
 vocab_size = 50000
 N = 12
 ilf_dict = {}
@@ -27,6 +27,7 @@ cur = 0
 for idx, word in word_dic.items():
     # idx : 1, 2, ... etc
     # word : 표지, 비상, ... 등
+    start = time()
     ilf = [0 for _ in range(N)]
     freq_lab = [0 for _ in range(N)]
     port = [0 for _ in range(N)]
@@ -48,7 +49,7 @@ for idx, word in word_dic.items():
         avg_freq /= (N-1)
         ilf[i] = abs(avg_freq - port[i])
     ilf_dict[word] = ilf
-    print("Preprocessing : ", cur, "/", 29358)
+    print("time : ", time()-start)
     cur += 1
 try:
     with open('./data/tlf_dict_2', 'wb') as fp:

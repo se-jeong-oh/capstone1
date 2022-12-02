@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
+from time import sleep
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.layers import concatenate, Dense, Dropout, Input, Conv2D, MaxPooling2D, Flatten, Embedding, GRU
 from tensorflow.keras.models import Model
@@ -11,20 +12,31 @@ from imblearn.under_sampling import *
 from tensorflow.keras.callbacks import EarlyStopping, CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-es = EarlyStopping(mid_delta=0, patience=10)
+
+es = EarlyStopping(patience=10)
 cl = CSVLogger('./logs/train.log')
 tb = TensorBoard('./logs', write_images=True)
 mc = ModelCheckpoint(filepath='./checkpoint',save_weights_only=True, save_best_only=True)
 
 
-vocab_size = 50000 # 사용할 단어의 개수 (빈도 순)
+vocab_size = 30000 # 사용할 단어의 개수 (빈도 순)
 N = 12 # 분류할 label의 종류
-usage = 0.8 # 현재 data의 크기가 커서, generator를 만들기 전까지 이걸로 사용
+usage = 0.001 # 현재 data의 크기가 커서, generator를 만들기 전까지 이걸로 사용
 max_len = 520 # padding을 맞출 문장의 최대 길이
 embedding_dim = 100 # 임베딩 차원
 dropout_rate = 0.3
 
-tlf_dict = pd.read_pickle("./data/tlf_dict_2")
+'''
+while True:
+    try:
+        tlf_dict = pd.read_pickle("./data/tlf_dict_2")
+        break
+    except:
+        print("Fail! Waiting for tlf_dict_2")
+	sleep(1)
+        pass
+'''
+tlf_dict = {}    
 tlf_tuplelist = list(tlf_dict.items())
 tlf_tuplelist_keys = [key[0] for key in tlf_tuplelist]
 
