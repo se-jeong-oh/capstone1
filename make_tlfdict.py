@@ -2,18 +2,18 @@ import pandas as pd
 from tensorflow.keras.preprocessing.text import Tokenizer
 import pickle
 from time import time
-vocab_size = 50000
+vocab_size = 30000
 N = 12
 ilf_dict = {}
 
-train_load_df = pd.read_pickle("./data/train_df.pkl")
+#train_load_df = pd.read_pickle("./data/train_df.pkl")
 #tlf_dict = pd.read_pickle("./data/tlf_dict")
-x_train = train_load_df['sentence']
-y_train = train_load_df['label']
+x_train = pd.read_pickle('./data/x_train_oversamp')
+y_train = pd.read_pickle('./data/y_train_oversamp')
 
 ttokenizer = Tokenizer(num_words = vocab_size)
 ttokenizer.fit_on_texts(x_train)
-X_train = ttokenizer.texts_to_sequences(x_train)
+#X_train = ttokenizer.texts_to_sequences(x_train)
 
 word_dic = ttokenizer.index_word
 
@@ -27,7 +27,6 @@ cur = 0
 for idx, word in word_dic.items():
     # idx : 1, 2, ... etc
     # word : 표지, 비상, ... 등
-    start = time()
     ilf = [0 for _ in range(N)]
     freq_lab = [0 for _ in range(N)]
     port = [0 for _ in range(N)]
@@ -47,12 +46,11 @@ for idx, word in word_dic.items():
             if i == j: continue
             avg_freq += port[j]
         avg_freq /= (N-1)
-        ilf[i] = abs(avg_freq - port[i])
+        ilf[i] = port[i] - avg_freq
     ilf_dict[word] = ilf
-    print("time : ", time()-start)
-    cur += 1
+    print(idx)
 try:
-    with open('./data/tlf_dict_2', 'wb') as fp:
+    with open('./data/tlf_dict_4_30000', 'wb') as fp:
         pickle.dump(ilf_dict, fp)
 except:
     pass
